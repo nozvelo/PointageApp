@@ -1,4 +1,4 @@
-package com.hippolyte.pointageapp;
+package com.hippolyte.pointageapp.ui;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -12,7 +12,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.hippolyte.pointageapp.data.Prefs;
 import com.hippolyte.pointageapp.databinding.ActivityMainBinding;
 import com.hippolyte.pointageapp.notif.NotificationHelper;
-import com.hippolyte.pointageapp.ui.NameActivity;
 import com.hippolyte.pointageapp.util.PermissionUtils;
 
 public class MainActivity extends AppCompatActivity {
@@ -108,7 +107,8 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_POST_NOTIF) {
-            startNow(); // même si refus : pas de notif mais le chrono tourne
+            // même si refus: on démarre quand même la tournée (notif absente)
+            startNow();
         }
     }
 }
