@@ -57,6 +57,7 @@
         android:layout_marginTop="16dp"/>
 
     <LinearLayout
+        android:id="@+id/btnRow"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -85,4 +86,14 @@
             android:text="Terminer la tournée"/>
     </LinearLayout>
 
+    <!-- 🔹 Bouton Historique -->
+    <Button
+        android:id="@+id/btnHistory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Historique"
+        app:layout_constraintTop_toBottomOf="@id/btnRow"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="16dp"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

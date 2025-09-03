@@ -9,9 +9,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.hippolyte.pointageapp.data.HistoryManager;
 import com.hippolyte.pointageapp.data.Prefs;
 import com.hippolyte.pointageapp.databinding.ActivityMainBinding;
 import com.hippolyte.pointageapp.notif.NotificationHelper;
+import com.hippolyte.pointageapp.ui.HistoryActivity;
 import com.hippolyte.pointageapp.ui.NameActivity;
 import com.hippolyte.pointageapp.util.PermissionUtils;
 
@@ -29,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
         vb.btnEditName.setOnClickListener(v -> startActivity(new Intent(this, NameActivity.class)));
         vb.btnStart.setOnClickListener(v -> onStartTour());
         vb.btnStop.setOnClickListener(v -> onStopTour());
+        vb.btnHistory.setOnClickListener(v -> startActivity(new Intent(this, HistoryActivity.class)));
     }
 
     @Override
@@ -91,7 +94,12 @@ public class MainActivity extends AppCompatActivity {
         long startAt = Prefs.getStartAt(this);
         if (startAt <= 0L) return;
 
-        long durationMs = System.currentTimeMillis() - startAt;
+        long endAt = System.currentTimeMillis();
+        long durationMs = endAt - startAt;
+
+        // 🔹 Sauvegarde dans l’historique JSON
+        HistoryManager.addEntry(this, startAt, endAt);
+
         Prefs.clearStart(this);
         NotificationHelper.cancelTimer(this);
 
@@ -108,7 +116,7 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_POST_NOTIF) {
-            startNow(); // même si refus : pas de notif mais le chrono tourne
+            startNow(); // même si refus : chrono tourne, notif absente
         }
     }
 }

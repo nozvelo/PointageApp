@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Android 13+ : permission notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -12,12 +13,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PointageApp">
 
-
-    <activity
+        <!-- Écran saisie du nom -->
+        <activity
             android:name=".ui.NameActivity"
             android:exported="false" />
 
-        <!-- MainActivity est bien dans le package racine -->
+        <!-- 📌 NOUVEAU : écran Historique -->
+        <activity
+            android:name=".ui.HistoryActivity"
+            android:exported="false" />
+
+        <!-- Écran principal (launcher) -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
