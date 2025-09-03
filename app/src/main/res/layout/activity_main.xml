@@ -5,13 +5,13 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:padding="20dp">
 
     <TextView
-        android:id="@+id/tvUser"
+        android:id="@+id/tvWelcome"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Bonjour"
+        android:text="@string/app_welcome"
         android:textStyle="bold"
         android:textSize="18sp"
         app:layout_constraintTop_toTopOf="parent"
@@ -22,18 +22,18 @@
         android:id="@+id/chronometer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:textSize="28sp"
-        android:gravity="center"
-        app:layout_constraintTop_toBottomOf="@id/tvUser"
+        android:textSize="32sp"
+        android:format="%s"
+        app:layout_constraintTop_toBottomOf="@id/tvWelcome"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="24dp"/>
+        android:layout_marginTop="16dp"/>
 
     <Button
         android:id="@+id/btnStart"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/start"
+        android:text="@string/btn_start"
         app:layout_constraintTop_toBottomOf="@id/chronometer"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@id/btnStop"
@@ -44,7 +44,7 @@
         android:id="@+id/btnStop"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/stop"
+        android:text="@string/btn_stop"
         app:layout_constraintTop_toBottomOf="@id/chronometer"
         app:layout_constraintStart_toEndOf="@id/btnStart"
         app:layout_constraintEnd_toEndOf="parent"
@@ -52,23 +52,23 @@
         android:layout_marginStart="8dp"/>
 
     <Button
-        android:id="@+id/btnShare"
+        android:id="@+id/btnEditName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/pointage_label_share_excel"
-        app:layout_constraintTop_toBottomOf="@id/btnStop"
+        android:text="@string/btn_edit_name"
+        app:layout_constraintTop_toBottomOf="@id/btnStart"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="18dp"/>
+        android:layout_marginTop="16dp"/>
 
-    <Button
-        android:id="@+id/btnHistory"
+    <TextView
+        android:id="@+id/tvHint"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/history"
-        app:layout_constraintTop_toBottomOf="@id/btnShare"
+        android:text="@string/hint_excel_auto"
+        android:textSize="12sp"
+        app:layout_constraintTop_toBottomOf="@id/btnEditName"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="12dp"/>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

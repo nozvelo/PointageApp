@@ -1,53 +1,33 @@
 package com.hippolyte.pointageapp.notif;
 
 import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
-import android.os.Build;
+import android.content.Intent;
 
 import androidx.core.app.NotificationCompat;
 
+import com.hippolyte.pointageapp.App;
 import com.hippolyte.pointageapp.R;
+import com.hippolyte.pointageapp.ui.MainActivity;
 
-public final class NotificationHelper {
-    public static final String CHANNEL_ID_TIMER = "pointage_timer";
-    public static final int NOTIF_ID_TIMER = 1001;
+public class NotificationHelper {
 
-    private NotificationHelper(){}
+    public static Notification buildOngoing(Context ctx, long startAt) {
+        Intent i = new Intent(ctx, MainActivity.class);
+        PendingIntent pi = PendingIntent.getActivity(
+                ctx, 1, i,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
 
-    public static void createChannels(Context ctx){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
-            NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID_TIMER,
-                    "Chronomètre de tournée",
-                    NotificationManager.IMPORTANCE_LOW
-            );
-            ch.setDescription("Affiche la durée de la tournée en cours");
-            NotificationManager nm = ctx.getSystemService(NotificationManager.class);
-            nm.createNotificationChannel(ch);
-        }
-    }
-
-    public static Notification buildRunningNotification(Context ctx, long startAt){
-        return new NotificationCompat.Builder(ctx, CHANNEL_ID_TIMER)
-                .setSmallIcon(R.drawable.ic_timer)
-                .setContentTitle("Tournée en cours")
-                .setContentText("Chronomètre actif")
-                .setWhen(startAt)
+        return new NotificationCompat.Builder(ctx, App.CHANNEL_ID)
+                .setContentTitle(ctx.getString(R.string.notif_ongoing_title))
+                .setContentText(ctx.getString(R.string.notif_ongoing_text))
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentIntent(pi)
                 .setOngoing(true)
+                .setWhen(startAt)
                 .setUsesChronometer(true)
-                .setOnlyAlertOnce(true)
                 .build();
-    }
-
-    public static void notifyTimer(Context ctx, long startAt){
-        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-        nm.notify(NOTIF_ID_TIMER, buildRunningNotification(ctx, startAt));
-    }
-
-    public static void cancelTimer(Context ctx){
-        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-        nm.cancel(NOTIF_ID_TIMER);
     }
 }

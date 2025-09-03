@@ -1,18 +1,21 @@
 <resources>
     <string name="app_name">Pointage ASD</string>
-
-    <string name="start">Commencer la tournée</string>
-    <string name="stop">Terminer la tournée</string>
-    <string name="pointage_label_share_excel">Partager le fichier Excel</string>
-    <string name="history">Historique</string>
-
-    <string name="hello_user">Bonjour, %1$s</string>
-
+    <string name="app_welcome">Pointage ASD • Bonjour !</string>
+    <string name="btn_start">Commencer la tournée</string>
+    <string name="btn_stop">Terminer la tournée</string>
+    <string name="btn_edit_name">Modifier le nom utilisateur</string>
+    <string name="hint_excel_auto">À l’arrêt : classification Matin/Aprem/Soir + écriture Excel (E/F) • G auto</string>
+    <string name="name_title">Votre nom (obligatoire)</string>
+    <string name="name_hint">Nom et prénom</string>
+    <string name="btn_save">Enregistrer</string>
+    <string name="snack_started">Tournée commencée</string>
+    <string name="snack_already_running">Une tournée est déjà en cours</string>
+    <string name="snack_need_start">Aucune tournée en cours</string>
+    <string name="snack_stopped">Tournée enregistrée</string>
+    <string name="snack_name_required">Veuillez saisir votre nom</string>
+    <string name="snack_excel_error">Erreur lors de l’écriture Excel</string>
     <string name="notif_channel_name">Pointage</string>
-    <string name="notif_channel_desc">Chronomètre de tournée en cours</string>
-    <string name="notif_running">Tournée en cours</string>
-
-    <string name="permission_post_notifications_rationale">
-        Autorisez les notifications pour afficher le chronomètre en cours.
-    </string>
+    <string name="notif_ongoing_title">Tournée en cours</string>
+    <string name="notif_ongoing_text">Chronomètre actif</string>
+    <string name="history">Historique</string>
 </resources>

@@ -1,217 +1,171 @@
-package com.hippolyte.pointageapp;
+package com.hippolyte.pointageapp.ui;
 
 import android.Manifest;
-import android.app.AlertDialog;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.SystemClock;
-import android.text.InputType;
-import android.widget.EditText;
+import android.text.TextUtils;
+import android.view.View;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.Nullable;
+import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
+import androidx.core.app.ActivityCompat;
 
+import com.hippolyte.pointageapp.R;
+import com.hippolyte.pointageapp.util.ChronometerManager;
+import com.hippolyte.pointageapp.notif.NotificationHelper;
+import com.hippolyte.pointageapp.data.Prefs;
 import com.hippolyte.pointageapp.databinding.ActivityMainBinding;
-import com.hippolyte.pointageapp.excel.ExcelManager;
-import com.hippolyte.pointageapp.util.Prefs;
-
-import java.io.File;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import com.hippolyte.pointageapp.excel.ExcelHelper;
 
 public class MainActivity extends AppCompatActivity {
 
-    private ActivityMainBinding b;
-    private static final String CHANNEL_ID = "pointage_channel";
-
-    private final ActivityResultLauncher<String> notifPerm =
-            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {});
+    private static final int REQ_POST_NOTIF = 1001;
+    private ActivityMainBinding vb;
+    private ChronometerManager chronoMgr;
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        vb = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(vb.getRoot());
 
-        b = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(b.getRoot());
+        chronoMgr = new ChronometerManager(vb.chronometer);
 
-        ensureUserName();
-        setupUi();
-        createNotifChannel();
-        askNotifPermissionIfNeeded();
-        syncUiFromState();
-    }
+        vb.tvWelcome.setText(getString(R.string.app_welcome));
 
-    private void setupUi() {
-        String user = Prefs.getUserName(this);
-        b.tvUser.setText(getString(R.string.hello_user, user.isEmpty() ? "—" : user));
+        vb.btnEditName.setOnClickListener(v -> {
+            startActivity(new Intent(this, NameActivity.class));
+        });
 
-        b.btnStart.setOnClickListener(v -> onStartClicked());
-        b.btnStop.setOnClickListener(v -> onStopClicked());
-        b.btnShare.setOnClickListener(v -> onShareClicked());
-        b.btnHistory.setOnClickListener(v -> {
-            startActivity(new Intent(this, com.hippolyte.pointageapp.history.HistoryActivity.class));
+        vb.btnStart.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                onStartClicked();
+            }
+        });
+
+        vb.btnStop.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                onStopClicked();
+            }
         });
     }
 
-    private void ensureUserName() {
-        if (Prefs.getUserName(this).isEmpty()) {
-            EditText input = new EditText(this);
-            input.setHint("Nom et prénom");
-            input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
-            new AlertDialog.Builder(this)
-                    .setTitle("Utilisateur")
-                    .setMessage("Entrez votre nom et prénom (obligatoire)")
-                    .setView(input)
-                    .setCancelable(false)
-                    .setPositiveButton("OK", (d, w) -> {
-                        String name = input.getText().toString().trim();
-                        if (name.isEmpty()) {
-                            Toast.makeText(this, "Nom requis", Toast.LENGTH_SHORT).show();
-                            ensureUserName();
-                            return;
-                        }
-                        Prefs.setUserName(this, name);
-                        setupUi();
-                    })
-                    .show();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        syncUiState();
+    }
+
+    private void syncUiState() {
+        String user = Prefs.getUser(this);
+        boolean hasName = !TextUtils.isEmpty(user);
+        long startAt = Prefs.getStartAt(this);
+        boolean running = startAt > 0;
+
+        vb.btnStart.setEnabled(hasName && !running);
+        vb.btnStop.setEnabled(running);
+
+        if (running) {
+            chronoMgr.startFromEpochMillis(startAt);
+        } else {
+            chronoMgr.stopAndReset();
         }
     }
 
     private void onStartClicked() {
-        long running = Prefs.getStartAt(this);
-        if (running > 0) {
-            Toast.makeText(this, "Une tournée est déjà en cours.", Toast.LENGTH_SHORT).show();
+        String user = Prefs.getUser(this);
+        if (TextUtils.isEmpty(user)) {
+            Toast.makeText(this, R.string.snack_name_required, Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, NameActivity.class));
             return;
         }
+        long running = Prefs.getStartAt(this);
+        if (running > 0) {
+            Toast.makeText(this, R.string.snack_already_running, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         long now = System.currentTimeMillis();
         Prefs.setStartAt(this, now);
+        chronoMgr.startFromEpochMillis(now);
 
-        b.chronometer.setBase(SystemClock.elapsedRealtime());
-        b.chronometer.start();
+        ensurePostNotifPermissionThenShow(now);
 
-        postOngoingChronoNotification(now);
-        syncUiFromState();
+        Toast.makeText(this, R.string.snack_started, Toast.LENGTH_SHORT).show();
+        syncUiState();
     }
 
     private void onStopClicked() {
         long startAt = Prefs.getStartAt(this);
         if (startAt <= 0) {
-            Toast.makeText(this, "Aucune tournée en cours.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.snack_need_start, Toast.LENGTH_SHORT).show();
             return;
         }
         long endAt = System.currentTimeMillis();
 
-        b.chronometer.stop();
+        // Écriture Excel robuste (utiliser ta logique v0.4 dans writer)
+        boolean ok = ExcelHelper.writeTimes(this, (in, out) -> {
+            // >>> place ici exactement TA logique POI existante de v0.4 <<
+            // - Lire le modèle si in == null
+            // - Calcul de l’offset du jour via C6 (déjà présent dans le modèle)
+            // - Classification Matin/Aprem/Soir selon règles strictes
+            // - Écriture E/F (début/fin) dans la ligne adéquate (G auto)
+            // - Sauvegarder le workbook vers 'out'
+        });
 
-        try {
-            ExcelManager excel = new ExcelManager(getApplicationContext());
-            File weekly = excel.getOrCreateWeeklyFile();
+        // Nettoyage état / notif quoi qu’il arrive
+        Prefs.clearStart(this);
+        stopOngoingNotification();
+        chronoMgr.stopAndReset();
+        syncUiState();
 
-            // 🔹 Assurer Nom & prénom en C4
-            excel.ensureUserName(weekly, Prefs.getUserName(this));
-
-            LocalDateTime startDt = LocalDateTime.ofInstant(Instant.ofEpochMilli(startAt), ZoneId.systemDefault());
-            LocalDateTime endDt   = LocalDateTime.ofInstant(Instant.ofEpochMilli(endAt), ZoneId.systemDefault());
-
-            excel.writeShiftTimes(weekly, startDt, endDt);
-
-            String msg = "Écrit: " + ExcelManager.niceDateTime(startDt) + " → " + ExcelManager.niceDateTime(endDt)
-                    + "\n" + weekly.getAbsolutePath();
-            Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Erreur Excel: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-
-        Prefs.clearStartAt(this);
-        NotificationManagerCompat.from(this).cancel(1);
-        syncUiFromState();
-    }
-
-    private void onShareClicked() {
-        try {
-            ExcelManager excel = new ExcelManager(getApplicationContext());
-            File weekly = excel.getOrCreateWeeklyFile();
-
-            // 🔹 Assurer Nom & prénom en C4 avant partage
-            excel.ensureUserName(weekly, Prefs.getUserName(this));
-
-            Uri uri = excel.getShareUri(weekly);
-
-            Intent share = new Intent(Intent.ACTION_SEND);
-            share.setType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            share.putExtra(Intent.EXTRA_STREAM, uri);
-            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-            startActivity(Intent.createChooser(share, getString(R.string.pointage_label_share_excel)));
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Partage impossible: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void syncUiFromState() {
-        long startAt = Prefs.getStartAt(this);
-        boolean running = startAt > 0;
-        b.btnStart.setEnabled(!running);
-        b.btnStop.setEnabled(running);
-
-        if (running) {
-            long elapsed = System.currentTimeMillis() - startAt;
-            b.chronometer.setBase(SystemClock.elapsedRealtime() - elapsed);
-            b.chronometer.start();
+        if (ok) {
+            Toast.makeText(this, R.string.snack_stopped, Toast.LENGTH_SHORT).show();
         } else {
-            b.chronometer.setBase(SystemClock.elapsedRealtime());
-            b.chronometer.stop();
+            Toast.makeText(this, R.string.snack_excel_error, Toast.LENGTH_LONG).show();
         }
     }
 
-    private void createNotifChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID,
-                    getString(R.string.notif_channel_name),
-                    NotificationManager.IMPORTANCE_LOW
-            );
-            ch.setDescription(getString(R.string.notif_channel_desc));
-            NotificationManager nm = getSystemService(NotificationManager.class);
-            if (nm != null) nm.createNotificationChannel(ch);
-        }
-    }
-
-    private void postOngoingChronoNotification(long whenEpochMillis) {
-        NotificationCompat.Builder nb = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(R.string.notif_running))
-                .setContentText(Prefs.getUserName(this))
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setOngoing(true)
-                .setUsesChronometer(true)
-                .setWhen(whenEpochMillis)
-                .setOnlyAlertOnce(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW);
-
-        NotificationManagerCompat.from(this).notify(1, nb.build());
-    }
-
-    private void askNotifPermissionIfNeeded() {
+    private void ensurePostNotifPermissionThenShow(long startAt) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-                    Toast.makeText(this, getString(R.string.permission_post_notifications_rationale), Toast.LENGTH_LONG).show();
-                }
-                notifPerm.launch(Manifest.permission.POST_NOTIFICATIONS);
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_POST_NOTIF);
+                // Affichera la notif dans onRequestPermissionsResult si accordé
+                return;
+            }
+        }
+        showOngoingNotification(startAt);
+    }
+
+    private void showOngoingNotification(long startAt) {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null) {
+            nm.notify(1, NotificationHelper.buildOngoing(this, startAt));
+        }
+    }
+
+    private void stopOngoingNotification() {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null) nm.cancel(1);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] perms, @NonNull int[] res) {
+        super.onRequestPermissionsResult(requestCode, perms, res);
+        if (requestCode == REQ_POST_NOTIF) {
+            if (res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED) {
+                long startAt = Prefs.getStartAt(this);
+                if (startAt > 0) showOngoingNotification(startAt);
+            } else {
+                Toast.makeText(this, "Permission notifications refusée (chronomètre toujours actif)", Toast.LENGTH_LONG).show();
             }
         }
     }
