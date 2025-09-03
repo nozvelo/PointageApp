@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.hippolyte.pointageapp.data.HistoryManager;
 import com.hippolyte.pointageapp.data.Prefs;
 import com.hippolyte.pointageapp.databinding.ActivityMainBinding;
+import com.hippolyte.pointageapp.excel.ExcelHelper;
 import com.hippolyte.pointageapp.notif.NotificationHelper;
 import com.hippolyte.pointageapp.ui.HistoryActivity;
 import com.hippolyte.pointageapp.ui.NameActivity;
@@ -97,8 +98,16 @@ public class MainActivity extends AppCompatActivity {
         long endAt = System.currentTimeMillis();
         long durationMs = endAt - startAt;
 
-        // 🔹 Sauvegarde dans l’historique JSON
+        // Historique JSON (v0.3)
         HistoryManager.addEntry(this, startAt, endAt);
+
+        // Écriture Excel v0.4 : C4 (si vide) + E/F pour le bon créneau/ jour
+        try {
+            String name = Prefs.getUserName(this);
+            ExcelHelper.writeTour(this, name == null ? "" : name, startAt, endAt);
+        } catch (Exception ex) {
+            Toast.makeText(this, "Écriture Excel échouée: " + ex.getMessage(), Toast.LENGTH_LONG).show();
+        }
 
         Prefs.clearStart(this);
         NotificationHelper.cancelTimer(this);

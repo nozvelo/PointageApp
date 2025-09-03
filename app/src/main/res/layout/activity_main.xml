@@ -86,7 +86,6 @@
             android:text="Terminer la tournée"/>
     </LinearLayout>
 
-    <!-- 🔹 Bouton Historique -->
     <Button
         android:id="@+id/btnHistory"
         android:layout_width="wrap_content"
@@ -96,4 +95,5 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="16dp"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

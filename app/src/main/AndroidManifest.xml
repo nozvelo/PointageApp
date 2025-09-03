@@ -13,12 +13,23 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PointageApp">
 
+        <!-- FileProvider pour partager/ouvrir le fichier Excel -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- Écran saisie du nom -->
         <activity
             android:name=".ui.NameActivity"
             android:exported="false" />
 
-        <!-- 📌 NOUVEAU : écran Historique -->
+        <!-- Écran Historique -->
         <activity
             android:name=".ui.HistoryActivity"
             android:exported="false" />
