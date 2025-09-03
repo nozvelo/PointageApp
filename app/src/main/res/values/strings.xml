@@ -1,3 +1,18 @@
 <resources>
-    <string name="app_name">PointageApp</string>
+    <string name="app_name">Pointage ASD</string>
+
+    <string name="start">Commencer la tournée</string>
+    <string name="stop">Terminer la tournée</string>
+    <string name="pointage_label_share_excel">Partager le fichier Excel</string>
+    <string name="history">Historique</string>
+
+    <string name="hello_user">Bonjour, %1$s</string>
+
+    <string name="notif_channel_name">Pointage</string>
+    <string name="notif_channel_desc">Chronomètre de tournée en cours</string>
+    <string name="notif_running">Tournée en cours</string>
+
+    <string name="permission_post_notifications_rationale">
+        Autorisez les notifications pour afficher le chronomètre en cours.
+    </string>
 </resources>

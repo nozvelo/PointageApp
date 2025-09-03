@@ -1,0 +1,4 @@
+<resources>
+    <!-- Nom unique, sans apostrophe pour éliminer toute ambiguïté d'encodage -->
+    <string name="label_share_excel_pointage">Partager le fichier Excel</string>
+</resources>

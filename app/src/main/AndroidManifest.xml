@@ -1,19 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest package="com.hippolyte.pointageapp"
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Android 13+ : permission notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".App"
         android:allowBackup="true"
-        android:label="Pointage ASD"
+        android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PointageApp">
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
-        <!-- FileProvider pour partager/ouvrir le fichier Excel -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- 👇 Ajout de l'écran Historique -->
+        <activity android:name=".history.HistoryActivity" />
+
+        <!-- FileProvider pour partager le .xlsx -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -23,26 +34,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
-        <!-- Écran saisie du nom -->
-        <activity
-            android:name=".ui.NameActivity"
-            android:exported="false" />
-
-        <!-- Écran Historique -->
-        <activity
-            android:name=".ui.HistoryActivity"
-            android:exported="false" />
-
-        <!-- Écran principal (launcher) -->
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
 
     </application>
 </manifest>
