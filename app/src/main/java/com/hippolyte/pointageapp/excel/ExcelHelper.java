@@ -1,6 +1,7 @@
 package com.hippolyte.pointageapp.excel;
 
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
@@ -12,61 +13,99 @@ import com.hippolyte.pointageapp.R;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.InputStream;
 
-// NOTE: l'implémentation Apache POI existante en v0.4 est conservée.
-// Ici on montre uniquement l'enveloppe IO robuste (tmp + lock). Injecte tes appels POI dans writeTimes().
 public class ExcelHelper {
-
     private static final String TAG = "ExcelHelper";
     private static final String DIR_NAME = "Pointage";
     private static final String LOCK_NAME = "pointage.lock";
+    private static final String MODEL_ASSET = "Fichier_vierge.xlsx";
 
     public interface Writer {
-        void write(FileInputStream in, FileOutputStream out) throws Exception;
+        void write(@Nullable FileInputStream in, FileOutputStream out) throws Exception;
     }
 
     public static File getWeekFile(Context ctx) {
         File docs = ctx.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
         File dir = new File(docs, DIR_NAME);
         if (!dir.exists()) dir.mkdirs();
-        // Nom de fichier basé sur lundi de la semaine (déjà en v0.4 chez toi)
-        String fileName = "Pointage_Semaine.xlsx";
-        return new File(dir, fileName);
+        return new File(dir, "Pointage_Semaine.xlsx");
+    }
+
+    private static void copyModelTo(Context ctx, File dest) throws Exception {
+        AssetManager am = ctx.getAssets();
+        try (InputStream in = am.open(MODEL_ASSET);
+             FileOutputStream out = new FileOutputStream(dest)) {
+            byte[] buf = new byte[8192];
+            int r;
+            while ((r = in.read(buf)) != -1) out.write(buf, 0, r);
+            out.flush(); // ✅ flush au lieu de sync
+        }
+    }
+
+    private static void copyFile(File src, File dst) throws Exception {
+        try (FileInputStream in = new FileInputStream(src);
+             FileOutputStream out = new FileOutputStream(dst)) {
+            byte[] buf = new byte[8192];
+            int r;
+            while ((r = in.read(buf)) != -1) out.write(buf, 0, r);
+            out.flush(); // ✅ flush
+        }
     }
 
     public static boolean writeTimes(Context ctx, Writer writer) {
         File target = getWeekFile(ctx);
-        File lock = new File(target.getParentFile(), LOCK_NAME);
-        File tmp = new File(target.getParentFile(), target.getName() + ".tmp");
-
-        if (!hasFreeSpace(target.getParentFile(), 1_000_000L)) {
+        File dir = target.getParentFile();
+        if (dir == null) {
+            Toast.makeText(ctx, "Répertoire invalide", Toast.LENGTH_LONG).show();
+            return false;
+        }
+        if (dir.getUsableSpace() < 1_000_000L) {
             Toast.makeText(ctx, "Espace disque insuffisant", Toast.LENGTH_LONG).show();
             return false;
         }
 
+        File lock = new File(dir, LOCK_NAME);
+        File tmp = new File(dir, target.getName() + ".tmp");
+
         try {
             if (!lock.createNewFile()) {
-                Toast.makeText(ctx, "Fichier en cours d'utilisation", Toast.LENGTH_LONG).show();
+                Toast.makeText(ctx, "Fichier en cours d’utilisation", Toast.LENGTH_LONG).show();
                 return false;
             }
 
-            try (FileInputStream in = target.exists() ? new FileInputStream(target) : null;
-                 FileOutputStream out = new FileOutputStream(tmp)) {
-
-                writer.write(in, out); // ← ici tes appels POI (copie modèle si in == null)
+            File base;
+            if (target.exists() && target.length() > 0) {
+                base = target;
+            } else {
+                File modelPrep = new File(dir, target.getName() + ".model");
+                copyModelTo(ctx, modelPrep);
+                base = modelPrep;
             }
 
-            if (!tmp.renameTo(target)) {
-                // Fallback copy
-                try (FileInputStream fin = new FileInputStream(tmp);
-                     FileOutputStream fout = new FileOutputStream(target)) {
+            try (FileInputStream in = base.exists() ? new FileInputStream(base) : null;
+                 FileOutputStream out = new FileOutputStream(tmp)) {
+                if (writer != null) {
+                    writer.write(in, out);
+                } else if (in != null) {
                     byte[] buf = new byte[8192];
                     int r;
-                    while ((r = fin.read(buf)) != -1) fout.write(buf, 0, r);
+                    while ((r = in.read(buf)) != -1) out.write(buf, 0, r);
                 }
-                // supprimer tmp après copie
-                //noinspection ResultOfMethodCallIgnored
+                out.flush(); // ✅ flush
+            }
+
+            if (tmp.length() == 0) {
+                tmp.delete();
+                Toast.makeText(ctx, ctx.getString(R.string.snack_excel_error), Toast.LENGTH_LONG).show();
+                return false;
+            }
+
+            if (target.exists() && !target.delete()) {
+                copyFile(tmp, target);
+                tmp.delete();
+            } else if (!tmp.renameTo(target)) {
+                copyFile(tmp, target);
                 tmp.delete();
             }
 
@@ -74,16 +113,10 @@ public class ExcelHelper {
         } catch (Exception e) {
             Log.e(TAG, "writeTimes error", e);
             Toast.makeText(ctx, ctx.getString(R.string.snack_excel_error), Toast.LENGTH_LONG).show();
-            //noinspection ResultOfMethodCallIgnored
             tmp.delete();
             return false;
         } finally {
-            if (lock.exists()) //noinspection ResultOfMethodCallIgnored
-                lock.delete();
+            if (lock.exists()) lock.delete();
         }
-    }
-
-    private static boolean hasFreeSpace(File dir, long minBytes) {
-        return dir.getUsableSpace() > minBytes;
     }
 }

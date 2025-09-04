@@ -9,7 +9,7 @@ import androidx.core.app.NotificationCompat;
 
 import com.hippolyte.pointageapp.App;
 import com.hippolyte.pointageapp.R;
-import com.hippolyte.pointageapp.ui.MainActivity;
+import com.hippolyte.pointageapp.MainActivity;
 
 public class NotificationHelper {
 

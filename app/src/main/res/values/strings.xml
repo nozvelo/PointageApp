@@ -17,5 +17,14 @@
     <string name="notif_channel_name">Pointage</string>
     <string name="notif_ongoing_title">Tournée en cours</string>
     <string name="notif_ongoing_text">Chronomètre actif</string>
+
+    <!-- v0.6 -->
     <string name="history">Historique</string>
+    <string name="btn_history">Historique</string>
+    <string name="btn_file">Fichier de la semaine</string>
+    <string name="file_title">Fichier Excel de la semaine</string>
+    <string name="btn_open">Ouvrir</string>
+    <string name="btn_share">Partager</string>
+    <string name="file_missing">Fichier non encore créé. Terminez une tournée pour le générer.</string>
+    <string name="no_viewer">Aucune application pour ouvrir un fichier Excel n’a été trouvée.</string>
 </resources>
