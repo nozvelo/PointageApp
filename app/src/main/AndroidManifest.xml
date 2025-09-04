@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest package="com.hippolyte.pointageapp"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Android 13+ : autorisation runtime pour les notifications -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 13+ : permission notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:targetApi="33" />
 
     <application
         android:allowBackup="true"
@@ -11,9 +11,26 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
 
-        <!-- FileProvider pour ouvrir/partager le .xlsx -->
+        <!-- Main -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Historique (CHEMIN CORRIGÉ) -->
+        <activity
+            android:name=".history.HistoryActivity"
+            android:exported="false"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode" />
+
+        <!-- FileProvider pour partager/ouvrir le fichier Excel -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -24,25 +41,22 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Historique -->
-        <activity
-            android:name=".history.HistoryActivity"
-            android:exported="false" />
-
-        <!-- Saisie/modif du nom -->
-        <activity
-            android:name=".ui.NameActivity"
-            android:exported="false" />
-
-        <!-- Accueil -->
-        <activity
-            android:name=".MainActivity"
+        <!-- (Optionnel) Receiver de restauration au reboot : laisse disabled tant qu’on ne l’active pas -->
+        <receiver
+            android:name=".boot.BootReceiver"
+            android:enabled="false"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
-        </activity>
+        </receiver>
+
+        <!-- (Optionnel) Si tu veux utiliser FileActivity, décommente cette activité
+        <activity
+            android:name=".ui.FileActivity"
+            android:exported="false"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode" />
+        -->
 
     </application>
 </manifest>
