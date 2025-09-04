@@ -117,7 +117,18 @@ public class MainActivity extends AppCompatActivity {
 
         if (Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            // v0.9 : rationale simple avant la demande
+            if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                new AlertDialog.Builder(this)
+                        .setTitle(R.string.notif_rationale_title)
+                        .setMessage(R.string.notif_rationale_msg)
+                        .setPositiveButton(R.string.allow, (d, w) ->
+                                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS))
+                        .setNegativeButton(R.string.later, null)
+                        .show();
+            } else {
+                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
         } else {
             showRunningNotification(startAt);
         }
@@ -135,14 +146,18 @@ public class MainActivity extends AppCompatActivity {
         TourEntry entry = TourEntry.from(startAt, endAt, p);
         HistoryStore.add(this, entry);
 
-        // 2) Écriture Excel (assure existence + C4 + E/F)
+        // 2) Écriture Excel (assure existence + C4 + E/F, sans écraser)
         try {
             File weekly = WeeklyFileManager.getWeeklyFile(this);
             WeeklyFileManager.ensureExists(this, weekly);
-            // Nom & prénom en C4 (idempotent)
             ExcelNameFixer.writeUserNameToC4(this, weekly);
-            // Heures E/F sur la bonne ligne
             ExcelTimeWriter.writeEF(weekly, entry, p);
+        } catch (IllegalStateException filled) {
+            if ("SLOT_FILLED".equals(filled.getMessage())) {
+                Toast.makeText(this, R.string.excel_slot_filled, Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, R.string.snack_excel_error, Toast.LENGTH_LONG).show();
+            }
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, R.string.snack_excel_error, Toast.LENGTH_LONG).show();

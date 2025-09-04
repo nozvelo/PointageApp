@@ -66,7 +66,10 @@ public class TourEntry {
     }
 
     @Override public String toString() {
-        return date + " (" + weekday + ") • " + period + " • " + startStr + "–" + endStr + " • " + durationMin + " min";
+        long h = durationMin / 60;
+        long m = durationMin % 60;
+        String hm = h + "h" + (m < 10 ? ("0" + m) : String.valueOf(m));
+        return date + " (" + weekday + ") • " + period + " • " + startStr + "–" + endStr + " • " + hm;
     }
 
     private static String capitalizeFirst(String s) {

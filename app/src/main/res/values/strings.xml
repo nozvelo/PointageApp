@@ -67,4 +67,12 @@
 
     <!-- Aide -->
     <string name="hint_excel_auto">À l’arrêt : classification Matin/Aprem/Soir + écriture Excel (E/F) • G auto</string>
+
+
+    <!-- v0.9 -->
+    <string name="excel_slot_filled">Créneau déjà rempli pour ce jour/période — écriture Excel ignorée</string>
+    <string name="notif_rationale_title">Autoriser les notifications</string>
+    <string name="notif_rationale_msg">La notification avec chronomètre permet de suivre la tournée en arrière-plan.</string>
+    <string name="allow">Autoriser</string>
+    <string name="later">Plus tard</string>
 </resources>
