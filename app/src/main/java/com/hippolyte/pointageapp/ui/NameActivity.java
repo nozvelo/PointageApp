@@ -2,40 +2,36 @@ package com.hippolyte.pointageapp.ui;
 
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.View;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.hippolyte.pointageapp.databinding.ActivityNameBinding;
+import com.hippolyte.pointageapp.R;
 import com.hippolyte.pointageapp.data.Prefs;
+import com.hippolyte.pointageapp.databinding.ActivityNameBinding;
 
 public class NameActivity extends AppCompatActivity {
 
     private ActivityNameBinding vb;
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         vb = ActivityNameBinding.inflate(getLayoutInflater());
         setContentView(vb.getRoot());
 
-        vb.etName.setText(Prefs.getUser(this));
+        // Pré-remplir si déjà présent
+        vb.etName.setText(Prefs.getUserName(this));
 
-        vb.btnSave.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                String name = vb.etName.getText().toString().trim();
-                if (TextUtils.isEmpty(name)) {
-                    Toast.makeText(NameActivity.this, "Nom obligatoire", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                Prefs.setUser(NameActivity.this, name);
-                Toast.makeText(NameActivity.this, "Nom enregistré", Toast.LENGTH_SHORT).show();
-                finish();
+        vb.btnSave.setOnClickListener(v -> {
+            String name = vb.etName.getText() != null ? vb.etName.getText().toString().trim() : "";
+            if (TextUtils.isEmpty(name)) {
+                vb.etName.setError(getString(R.string.snack_name_required));
+                return;
             }
+            Prefs.setUserName(this, name);
+            Toast.makeText(this, R.string.name_saved, Toast.LENGTH_SHORT).show();
+            finish(); // retour à MainActivity
         });
     }
 }

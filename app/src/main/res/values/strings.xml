@@ -1,30 +1,70 @@
 <resources>
+    <!-- Application -->
     <string name="app_name">Pointage ASD</string>
     <string name="app_welcome">Pointage ASD • Bonjour !</string>
-    <string name="btn_start">Commencer la tournée</string>
-    <string name="btn_stop">Terminer la tournée</string>
-    <string name="btn_edit_name">Modifier le nom utilisateur</string>
-    <string name="hint_excel_auto">À l’arrêt : classification Matin/Aprem/Soir + écriture Excel (E/F) • G auto</string>
+
+    <!-- Nom utilisateur -->
     <string name="name_title">Votre nom (obligatoire)</string>
     <string name="name_hint">Nom et prénom</string>
     <string name="btn_save">Enregistrer</string>
+    <string name="snack_name_required">Veuillez saisir votre nom</string>
+    <string name="name_saved">Nom enregistré</string>
+    <string name="welcome_no_name">Bienvenue</string>
+    <string name="welcome_name">Bienvenue %1$s</string>
+    <string name="change_name">Modifier le nom</string>
+
+    <!-- Actions principales -->
+    <string name="btn_start">Commencer la tournée</string>
+    <string name="btn_stop">Terminer la tournée</string>
+    <string name="btn_edit_name">Modifier le nom utilisateur</string>
+    <string name="btn_history">Historique</string>
+    <string name="btn_file">Fichier de la semaine</string>
+    <string name="btn_open">Ouvrir</string>
+    <string name="btn_share">Partager</string>
+
+    <!-- Aliases pour compatibilité layout -->
+    <string name="start_tour">@string/btn_start</string>
+    <string name="stop_tour">@string/btn_stop</string>
+
+    <!-- Statut & chrono -->
+    <string name="status_idle">Statut : à l’arrêt</string>
+    <string name="status_running">Statut : en cours</string>
+    <string name="tour_started">Tournée démarrée</string>
+    <string name="tour_stopped">Tournée terminée • %1$d min</string>
+
+    <!-- Snack / Toast -->
     <string name="snack_started">Tournée commencée</string>
     <string name="snack_already_running">Une tournée est déjà en cours</string>
     <string name="snack_need_start">Aucune tournée en cours</string>
     <string name="snack_stopped">Tournée enregistrée</string>
-    <string name="snack_name_required">Veuillez saisir votre nom</string>
     <string name="snack_excel_error">Erreur lors de l’écriture Excel</string>
+
+    <!-- Notifications (compat avec NotificationHelper) -->
     <string name="notif_channel_name">Pointage</string>
     <string name="notif_ongoing_title">Tournée en cours</string>
     <string name="notif_ongoing_text">Chronomètre actif</string>
+    <!-- Aussi garder ces deux si certains écrans les utilisent -->
+    <string name="notif_title">Tournée en cours</string>
+    <string name="notif_text">Chronomètre actif</string>
+    <string name="channel_name">Pointage — Tournée</string>
+    <string name="channel_desc">Notification persistante pendant la tournée</string>
+    <string name="perm_notif_denied">Permission de notification refusée</string>
 
-    <!-- v0.6 -->
+    <!-- Historique -->
     <string name="history">Historique</string>
-    <string name="btn_history">Historique</string>
-    <string name="btn_file">Fichier de la semaine</string>
+    <string name="history_title">Historique des tournées</string>
+    <string name="history_open">Historique</string>
+    <string name="history_clear">Vider</string>
+    <string name="history_clear_title">Vider l’historique</string>
+    <string name="history_clear_msg">Confirmer la suppression de toutes les entrées ?</string>
+    <string name="history_clear_yes">Oui, supprimer</string>
+    <string name="close">Fermer</string>
+
+    <!-- Fichier Excel -->
     <string name="file_title">Fichier Excel de la semaine</string>
-    <string name="btn_open">Ouvrir</string>
-    <string name="btn_share">Partager</string>
     <string name="file_missing">Fichier non encore créé. Terminez une tournée pour le générer.</string>
     <string name="no_viewer">Aucune application pour ouvrir un fichier Excel n’a été trouvée.</string>
+
+    <!-- Aide -->
+    <string name="hint_excel_auto">À l’arrêt : classification Matin/Aprem/Soir + écriture Excel (E/F) • G auto</string>
 </resources>

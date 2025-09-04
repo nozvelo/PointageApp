@@ -1,256 +1,234 @@
 package com.hippolyte.pointageapp;
 
 import android.Manifest;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.content.Context;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.text.TextUtils;
+import android.os.SystemClock;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.hippolyte.pointageapp.data.Prefs;
+import com.hippolyte.pointageapp.data.HistoryStore;
+import com.hippolyte.pointageapp.data.TourClassifier;
+import com.hippolyte.pointageapp.data.TourEntry;
 import com.hippolyte.pointageapp.databinding.ActivityMainBinding;
-import com.hippolyte.pointageapp.excel.ExcelHelper;
+import com.hippolyte.pointageapp.excel.ExcelNameFixer;
+import com.hippolyte.pointageapp.excel.ExcelTimeWriter;
+import com.hippolyte.pointageapp.excel.WeeklyFileManager;
 import com.hippolyte.pointageapp.history.HistoryActivity;
-import com.hippolyte.pointageapp.notif.NotificationHelper;
-import com.hippolyte.pointageapp.ui.FileActivity;
 import com.hippolyte.pointageapp.ui.NameActivity;
-import com.hippolyte.pointageapp.util.ChronometerManager;
 
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.concurrent.TimeUnit;
+import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int REQ_POST_NOTIF = 1001;
     private ActivityMainBinding vb;
-    private ChronometerManager chronoMgr;
+
+    private static final String CHANNEL_ID = "pointage_running_channel";
+    private static final int NOTIF_ID = 1001;
+
+    private final ActivityResultLauncher<String> notifPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (!granted) {
+                    Toast.makeText(this, R.string.perm_notif_denied, Toast.LENGTH_SHORT).show();
+                } else if (isRunning()) {
+                    showRunningNotification(Prefs.getStartAt(this));
+                }
+            });
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         vb = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(vb.getRoot());
 
-        chronoMgr = new ChronometerManager(vb.chronometer);
+        ensureChannel();
 
-        vb.tvWelcome.setText(getString(R.string.app_welcome));
+        String name = Prefs.getUserName(this);
+        if (name == null || name.trim().isEmpty()) {
+            startActivity(new Intent(this, NameActivity.class));
+        }
+        updateWelcome();
+        updateUiFromState();
 
-        vb.btnEditName.setOnClickListener(v -> startActivity(new Intent(this, NameActivity.class)));
-        vb.btnStart.setOnClickListener(v -> onStartClicked());
-        vb.btnStop.setOnClickListener(v -> onStopClicked());
-
-        vb.btnHistory.setOnClickListener(v ->
-                startActivity(new Intent(this, HistoryActivity.class)));
-
-        vb.btnFile.setOnClickListener(v ->
-                startActivity(new Intent(this, FileActivity.class)));
+        vb.btnStart.setOnClickListener(v -> onStartTour());
+        vb.btnStop.setOnClickListener(v -> onStopTour());
+        if (vb.btnChangeName != null) vb.btnChangeName.setOnClickListener(v -> startActivity(new Intent(this, NameActivity.class)));
+        if (vb.btnHistory != null) vb.btnHistory.setOnClickListener(v -> startActivity(new Intent(this, HistoryActivity.class)));
+        if (vb.btnFile != null) vb.btnFile.setOnClickListener(v -> onFileClick());
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        syncUiState();
+        updateWelcome();
+        updateUiFromState();
     }
 
-    private void syncUiState() {
-        String user = Prefs.getUser(this);
-        boolean hasName = !TextUtils.isEmpty(user);
+    private void updateWelcome() {
+        String n = Prefs.getUserName(this);
+        if (vb.tvWelcome != null) {
+            if (n == null || n.trim().isEmpty()) {
+                vb.tvWelcome.setText(getString(R.string.welcome_no_name));
+            } else {
+                vb.tvWelcome.setText(getString(R.string.welcome_name, n));
+            }
+        }
+    }
+
+    private boolean isRunning() {
+        return Prefs.getStartAt(this) > 0L;
+    }
+
+    private void updateUiFromState() {
         long startAt = Prefs.getStartAt(this);
-        boolean running = startAt > 0;
-
-        vb.btnStart.setEnabled(hasName && !running);
-        vb.btnStop.setEnabled(running);
-
-        if (running) {
-            chronoMgr.startFromEpochMillis(startAt);
+        if (startAt > 0L) {
+            vb.btnStart.setEnabled(false);
+            vb.btnStop.setEnabled(true);
+            if (vb.status != null) vb.status.setText(R.string.status_running);
+            vb.chronometer.setBase(SystemClock.elapsedRealtime() - (System.currentTimeMillis() - startAt));
+            vb.chronometer.start();
         } else {
-            chronoMgr.stopAndReset();
+            vb.btnStart.setEnabled(true);
+            vb.btnStop.setEnabled(false);
+            if (vb.status != null) vb.status.setText(R.string.status_idle);
+            vb.chronometer.stop();
+            vb.chronometer.setBase(SystemClock.elapsedRealtime());
         }
     }
 
-    private void onStartClicked() {
-        String user = Prefs.getUser(this);
-        if (TextUtils.isEmpty(user)) {
-            Toast.makeText(this, R.string.snack_name_required, Toast.LENGTH_SHORT).show();
-            startActivity(new Intent(this, NameActivity.class));
-            return;
-        }
-        if (Prefs.getStartAt(this) > 0) {
-            Toast.makeText(this, R.string.snack_already_running, Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void onStartTour() {
+        if (isRunning()) return;
+        long startAt = System.currentTimeMillis();
+        Prefs.setStartAt(this, startAt);
+        updateUiFromState();
 
-        long now = System.currentTimeMillis();
-        Prefs.setStartAt(this, now);
-        chronoMgr.startFromEpochMillis(now);
-        ensurePostNotifPermissionThenShow(now);
-        Toast.makeText(this, R.string.snack_started, Toast.LENGTH_SHORT).show();
-        syncUiState();
+        if (Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        } else {
+            showRunningNotification(startAt);
+        }
+        Toast.makeText(this, R.string.tour_started, Toast.LENGTH_SHORT).show();
     }
 
-    private void onStopClicked() {
+    private void onStopTour() {
+        if (!isRunning()) return;
+
         long startAt = Prefs.getStartAt(this);
-        if (startAt <= 0) {
-            Toast.makeText(this, R.string.snack_need_start, Toast.LENGTH_SHORT).show();
-            return;
-        }
         long endAt = System.currentTimeMillis();
 
-        boolean ok = ExcelHelper.writeTimes(this, (FileInputStream in, FileOutputStream out) -> {
-            Workbook wb = (in != null) ? new XSSFWorkbook(in) : new XSSFWorkbook();
-            Sheet sheet = wb.getSheetAt(0);
+        // 1) Classification + historique
+        TourClassifier.Period p = TourClassifier.classify(startAt, endAt);
+        TourEntry entry = TourEntry.from(startAt, endAt, p);
+        HistoryStore.add(this, entry);
 
-            // ✅ ÉCRIRE NOM & PRÉNOM EN C4 (fusion C4:G4 déjà dans le modèle ; on ne touche qu’à C4)
-            String userName = Prefs.getUser(this);
-            if (!TextUtils.isEmpty(userName)) {
-                Row rowC4 = sheet.getRow(3); // ligne 4 -> index 3
-                if (rowC4 == null) rowC4 = sheet.createRow(3);
-                Cell cellC4 = rowC4.getCell(2); // colonne C -> index 2
-                if (cellC4 == null) cellC4 = rowC4.createCell(2);
-                cellC4.setCellValue(userName);
-            }
+        // 2) Écriture Excel (assure existence + C4 + E/F)
+        try {
+            File weekly = WeeklyFileManager.getWeeklyFile(this);
+            WeeklyFileManager.ensureExists(this, weekly);
+            // Nom & prénom en C4 (idempotent)
+            ExcelNameFixer.writeUserNameToC4(this, weekly);
+            // Heures E/F sur la bonne ligne
+            ExcelTimeWriter.writeEF(weekly, entry, p);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, R.string.snack_excel_error, Toast.LENGTH_LONG).show();
+        }
 
-            // 🔢 Récupérer le lundi de la semaine via C6
-            Row rowC6 = sheet.getRow(5); // ligne 6 -> index 5
-            if (rowC6 == null) rowC6 = sheet.createRow(5);
-            Cell cellC6 = rowC6.getCell(2); // colonne C -> index 2
-            if (cellC6 == null) cellC6 = rowC6.createCell(2);
+        // 3) Arrêt chrono + état + notif
+        Prefs.clearStartAt(this);
+        updateUiFromState();
+        NotificationManagerCompat.from(this).cancel(NOTIF_ID);
 
-            FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator();
-            evaluator.evaluateFormulaCell(cellC6);
-            Date monday = cellC6.getDateCellValue();
+        Toast.makeText(this, getString(R.string.tour_stopped, entry.durationMin), Toast.LENGTH_LONG).show();
+    }
 
-            if (monday == null) {
-                Calendar cal = Calendar.getInstance();
-                cal.setTimeInMillis(startAt);
-                int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
-                int isoDay = (dayOfWeek == Calendar.SUNDAY) ? 7 : dayOfWeek - 1;
-                cal.add(Calendar.DAY_OF_MONTH, -(isoDay - 1));
-                zeroTime(cal);
-                monday = cal.getTime();
-            }
+    private void ensureChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel ch = new NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.channel_name),
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            ch.setDescription(getString(R.string.channel_desc));
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) nm.createNotificationChannel(ch);
+        }
+    }
 
-            // 📅 Calcul offset 0..6
-            Calendar cStart = Calendar.getInstance();
-            cStart.setTimeInMillis(startAt);
-            zeroTime(cStart);
-            Calendar cMonday = Calendar.getInstance();
-            cMonday.setTime(monday);
-            zeroTime(cMonday);
+    private void showRunningNotification(long startAt) {
+        Intent open = new Intent(this, MainActivity.class);
+        PendingIntent contentPi = PendingIntent.getActivity(
+                this, 0, open,
+                Build.VERSION.SDK_INT >= 31
+                        ? PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                        : PendingIntent.FLAG_UPDATE_CURRENT
+        );
 
-            long diffDays = TimeUnit.MILLISECONDS.toDays(
-                    cStart.getTimeInMillis() - cMonday.getTimeInMillis());
-            int offset = (int) Math.max(0, Math.min(6, diffDays));
+        NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_notify_more)
+                .setContentTitle(getString(R.string.notif_title))
+                .setContentText(getString(R.string.notif_text))
+                .setContentIntent(contentPi)
+                .setOngoing(true)
+                .setWhen(startAt)
+                .setUsesChronometer(true)
+                .setOnlyAlertOnce(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW);
 
-            // ⏰ Classification
-            Calendar startCal = Calendar.getInstance();
-            startCal.setTimeInMillis(startAt);
-            int startHour = startCal.get(Calendar.HOUR_OF_DAY);
-            int startMin = startCal.get(Calendar.MINUTE);
+        NotificationManagerCompat.from(this).notify(NOTIF_ID, b.build());
+    }
 
-            Calendar endCal = Calendar.getInstance();
-            endCal.setTimeInMillis(endAt);
-            int endHour = endCal.get(Calendar.HOUR_OF_DAY);
-            int endMin = endCal.get(Calendar.MINUTE);
+    /* =========================
+       Export / Ouvrir / Partager
+       ========================= */
+    private void onFileClick() {
+        try {
+            File weekly = WeeklyFileManager.getWeeklyFile(this);
+            WeeklyFileManager.ensureExists(this, weekly);
+            ExcelNameFixer.writeUserNameToC4(this, weekly);
 
-            boolean isMorning = (startHour > 6 || (startHour == 6 && startMin >= 0)) &&
-                    (endHour < 13 || (endHour == 13 && endMin <= 45));
-            boolean isEvening = (startHour > 15 || (startHour == 15 && startMin >= 30)) &&
-                    (endHour < 21 || (endHour == 21 && endMin <= 45));
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.file_title)
+                    .setItems(new CharSequence[]{
+                            getString(R.string.btn_open),
+                            getString(R.string.btn_share)
+                    }, (d, which) -> {
+                        if (which == 0) openWeeklyFile(weekly);
+                        else shareWeeklyFile(weekly);
+                    })
+                    .show();
 
-            if (startHour == 6 && startMin == 0) isMorning = true;
-            if (startHour == 15 && startMin == 30) isEvening = true;
-
-            int baseRow;
-            if (isMorning) baseRow = 10;
-            else if (isEvening) baseRow = 30;
-            else baseRow = 20;
-
-            int excelRowNumber = baseRow + offset;
-            int poiRowIndex = excelRowNumber - 1;
-
-            Row r = sheet.getRow(poiRowIndex);
-            if (r == null) r = sheet.createRow(poiRowIndex);
-
-            // ✍️ Écriture des heures en E/F (indices 4 et 5). On ne touche JAMAIS à G.
-            Cell cE = r.getCell(4); if (cE == null) cE = r.createCell(4);
-            Cell cF = r.getCell(5); if (cF == null) cF = r.createCell(5);
-
-            cE.setCellValue(new Date(startAt));
-            cF.setCellValue(new Date(endAt));
-
-            wb.write(out);
-            wb.close();
-        });
-
-        // 🔄 Reset état et UI
-        Prefs.clearStart(this);
-        stopOngoingNotification();
-        chronoMgr.stopAndReset();
-        syncUiState();
-
-        if (ok) {
-            Toast.makeText(this, R.string.snack_stopped, Toast.LENGTH_SHORT).show();
-        } else {
+        } catch (Exception e) {
+            e.printStackTrace();
             Toast.makeText(this, R.string.snack_excel_error, Toast.LENGTH_LONG).show();
         }
     }
 
-    private static void zeroTime(Calendar cal) {
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-    }
-
-    private void ensurePostNotifPermissionThenShow(long startAt) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                        REQ_POST_NOTIF);
-                return;
-            }
+    private void openWeeklyFile(File weekly) {
+        Intent i = WeeklyFileManager.buildOpenIntent(this, weekly);
+        try {
+            startActivity(i);
+        } catch (android.content.ActivityNotFoundException ex) {
+            Toast.makeText(this, R.string.no_viewer, Toast.LENGTH_LONG).show();
         }
-        showOngoingNotification(startAt);
     }
 
-    private void showOngoingNotification(long startAt) {
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null) nm.notify(1, NotificationHelper.buildOngoing(this, startAt));
-    }
-
-    private void stopOngoingNotification() {
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null) nm.cancel(1);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] perms, @NonNull int[] res) {
-        super.onRequestPermissionsResult(requestCode, perms, res);
-        if (requestCode == REQ_POST_NOTIF) {
-            if (res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED) {
-                long startAt = Prefs.getStartAt(this);
-                if (startAt > 0) showOngoingNotification(startAt);
-            } else {
-                Toast.makeText(this, "Permission notifications refusée (chronomètre toujours actif)", Toast.LENGTH_LONG).show();
-            }
-        }
+    private void shareWeeklyFile(File weekly) {
+        Intent i = WeeklyFileManager.buildShareIntent(this, weekly);
+        startActivity(Intent.createChooser(i, getString(R.string.btn_share)));
     }
 }

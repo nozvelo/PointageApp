@@ -1,37 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest package="com.hippolyte.pointageapp"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Android 13+ : autorisation runtime pour les notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".App"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.PointageApp">
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
 
-        <!-- existantes -->
-        <activity android:name=".ui.NameActivity" android:exported="false"/>
-        <activity android:name=".ui.FileActivity" android:exported="false"/>
-        <!-- ✅ nouvelle -->
-        <activity android:name=".history.HistoryActivity" android:exported="false"/>
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-
-        <!-- FileProvider déjà configuré -->
+        <!-- FileProvider pour ouvrir/partager le .xlsx -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Historique -->
+        <activity
+            android:name=".history.HistoryActivity"
+            android:exported="false" />
+
+        <!-- Saisie/modif du nom -->
+        <activity
+            android:name=".ui.NameActivity"
+            android:exported="false" />
+
+        <!-- Accueil -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
     </application>
 </manifest>
