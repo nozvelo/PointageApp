@@ -32,8 +32,12 @@ import androidx.core.content.FileProvider;
 import com.hippolyte.pointageapp.databinding.ActivityMainBinding;
 import com.hippolyte.pointageapp.excel.ExcelHelper;
 import com.hippolyte.pointageapp.history.HistoryActivity;
+import com.hippolyte.pointageapp.data.HistoryStore;
+import com.hippolyte.pointageapp.data.TourClassifier;
+import com.hippolyte.pointageapp.data.TourEntry;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
@@ -63,7 +67,6 @@ public class MainActivity extends AppCompatActivity {
 
         sp = getSharedPreferences(PREFS, MODE_PRIVATE);
 
-        // Map des vues (IDs connus + secours par texte)
         mapViewsById();
         wireByTextIfMissing((ViewGroup) binding.getRoot());
         findStatusByInitialTextIfMissing((ViewGroup) binding.getRoot());
@@ -132,8 +135,46 @@ public class MainActivity extends AppCompatActivity {
         updateStatus(false);
 
         boolean ok = ExcelHelper.recordTour(this, startAt, endAt);
+
+        // Historique local
+        try {
+            Object period = safeClassify(startAt, endAt);
+            TourEntry entry = safeBuildTourEntry(startAt, endAt, period);
+            if (entry != null) {
+                HistoryStore.add(this, startAt, endAt, (period != null ? period.toString() : "Après-midi"));
+            }
+        } catch (Throwable t) {
+            Toast.makeText(this, "Historique non mis à jour : " + t.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+
         String msg = "Tournée terminée. Durée ~ " + (durationMs / 60000) + " min" + (ok ? " (Excel OK)" : " (Excel KO)");
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+    }
+
+    private Object safeClassify(long startAt, long endAt) {
+        try {
+            Method m = TourClassifier.class.getMethod("classify", long.class, long.class);
+            return m.invoke(null, startAt, endAt);
+        } catch (Throwable ignored) { }
+        return null;
+    }
+
+    private TourEntry safeBuildTourEntry(long startAt, long endAt, @Nullable Object period) {
+        try {
+            if (period != null) {
+                try {
+                    Method mExact = TourEntry.class.getMethod("from", long.class, long.class, period.getClass());
+                    Object obj = mExact.invoke(null, startAt, endAt, period);
+                    if (obj instanceof TourEntry) return (TourEntry) obj;
+                } catch (NoSuchMethodException ignored) { }
+                try {
+                    Method mStr = TourEntry.class.getMethod("from", long.class, long.class, String.class);
+                    Object obj = mStr.invoke(null, startAt, endAt, period.toString());
+                    if (obj instanceof TourEntry) return (TourEntry) obj;
+                } catch (NoSuchMethodException ignored) { }
+            }
+        } catch (Throwable ignored) { }
+        return null;
     }
 
     // ===== Chrono/UI/Statut =====
