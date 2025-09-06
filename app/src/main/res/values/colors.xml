@@ -49,4 +49,16 @@
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
     <color name="transparent">#00000000</color>
+
+    <!-- nouvelles couleurs -->
+    <color name="md_bg">#121015</color>
+    <color name="md_card">#1C1822</color>
+    <color name="md_primary">#C9A7F5</color>
+    <color name="md_primary_dark">#A886E0</color>
+    <color name="md_on_primary">#231B2E</color>
+    <color name="md_text">#F5F2FA</color>
+    <color name="md_text_muted">#CFC7DB</color>
+    <color name="md_success">#79D2A6</color>
+    <color name="md_error">#FF8A80</color>
+    <color name="md_divider">#2B2433</color>
 </resources>

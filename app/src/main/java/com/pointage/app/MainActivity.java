@@ -7,6 +7,10 @@ import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.ImageDecoder;
+import android.graphics.drawable.Animatable;
+import android.graphics.drawable.AnimatedImageDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -37,6 +41,7 @@ import com.pointage.app.data.TourClassifier;
 import com.pointage.app.data.TourEntry;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Locale;
 
@@ -55,6 +60,9 @@ public class MainActivity extends AppCompatActivity {
     @Nullable private Button btnStart, btnStop, btnExport, btnHistory, btnEditName, btnOpenFile;
     @Nullable private TextView tvStatus;
 
+    // v1.0.6 fix GIF: mémorise l’animation en cours pour pouvoir la stopper proprement
+    @Nullable private Animatable runningAnim;
+
     private final ActivityResultLauncher<String> requestPostNotifications =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {});
 
@@ -70,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
         mapViewsById();
         wireByTextIfMissing((ViewGroup) binding.getRoot());
         findStatusByInitialTextIfMissing((ViewGroup) binding.getRoot());
+
+        updateWelcomeTitle();
 
         if (getIntent() != null && getIntent().getBooleanExtra("restore_notification_only", false)) {
             long startAt = sp.getLong(KEY_START_AT, 0L);
@@ -95,10 +105,19 @@ public class MainActivity extends AppCompatActivity {
             startChrono(startAt);
             toggleButtons(true);
             updateStatus(true);
+            updateStatusVisual(true);
         } else {
             toggleButtons(false);
             updateStatus(false);
+            updateStatusVisual(false);
         }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // v1.0.6 fix GIF: stop de sécurité si l’activité passe en arrière-plan
+        stopGifIfAny();
     }
 
     // ===== Start/Stop =====
@@ -116,6 +135,7 @@ public class MainActivity extends AppCompatActivity {
         startChrono(now);
         toggleButtons(true);
         updateStatus(true);
+        updateStatusVisual(true); // affiche GIF et démarre l’anim
     }
 
     private void stopTour() {
@@ -124,6 +144,10 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Aucune tournée en cours.", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // v1.0.6 fix GIF: arrêter IMMÉDIATEMENT l’animation pour éviter le crash natif
+        stopGifIfAny();
+        showStatic(R.drawable.nurse_static);
 
         long endAt = System.currentTimeMillis();
         long durationMs = endAt - startAt;
@@ -136,7 +160,6 @@ public class MainActivity extends AppCompatActivity {
 
         boolean ok = ExcelHelper.recordTour(this, startAt, endAt);
 
-        // Historique local
         try {
             Object period = safeClassify(startAt, endAt);
             TourEntry entry = safeBuildTourEntry(startAt, endAt, period);
@@ -196,8 +219,65 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateStatus(boolean running) {
-        if (tvStatus == null) return;
-        tvStatus.setText(running ? "Statut : en cours" : "Statut : à l’arrêt");
+        TextView target = tvStatus != null ? tvStatus : (binding != null ? binding.tvStatus : null);
+        if (target != null) target.setText(running ? "Statut : en cours" : "Statut : à l’arrêt");
+    }
+
+    private void updateWelcomeTitle() {
+        if (binding == null) return;
+        String name = sp.getString(KEY_USER_NAME, "");
+        if (name == null || name.trim().isEmpty()) binding.textWelcome.setText("Bienvenue");
+        else binding.textWelcome.setText("Bienvenue, " + name.trim());
+    }
+
+    private void updateStatusVisual(boolean running) {
+        if (binding == null || binding.imageStatus == null) return;
+        if (running) {
+            showGif(R.drawable.nurse_drive);
+        } else {
+            stopGifIfAny();                 // v1.0.6 fix GIF
+            showStatic(R.drawable.nurse_static);
+        }
+    }
+
+    private void showStatic(int resId) {
+        binding.imageStatus.setImageResource(resId);
+    }
+
+    private void showGif(int resId) {
+        if (Build.VERSION.SDK_INT >= 28) {
+            try {
+                Drawable d = ImageDecoder.decodeDrawable(ImageDecoder.createSource(getResources(), resId));
+                // v1.0.6 fix GIF: stopper l’ancienne anim avant d’en mettre une nouvelle
+                stopGifIfAny();
+                binding.imageStatus.setImageDrawable(d);
+                if (d instanceof AnimatedImageDrawable) {
+                    ((AnimatedImageDrawable) d).start();
+                    runningAnim = (AnimatedImageDrawable) d; // mémorise
+                } else if (d instanceof Animatable) {
+                    ((Animatable) d).start();
+                    runningAnim = (Animatable) d;
+                } else {
+                    runningAnim = null;
+                }
+            } catch (IOException e) {
+                showStatic(R.drawable.nurse_static);
+                runningAnim = null;
+            }
+        } else {
+            showStatic(R.drawable.nurse_static);
+            runningAnim = null;
+        }
+    }
+
+    // v1.0.6 fix GIF: arrêt propre & nettoyage
+    private void stopGifIfAny() {
+        try {
+            if (runningAnim != null) {
+                runningAnim.stop();
+            }
+        } catch (Throwable ignored) { }
+        runningAnim = null;
     }
 
     // ===== Notification =====
@@ -270,6 +350,7 @@ public class MainActivity extends AppCompatActivity {
                     if (startAt > 0L) {
                         showOngoingChronoNotification(startAt);
                     }
+                    updateWelcomeTitle();
                 })
                 .setNegativeButton("Annuler", null)
                 .show();
